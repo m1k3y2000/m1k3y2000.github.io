@@ -195525,13 +195525,25 @@ ZZZ`.split('\n').map(word => word.trim().toLowerCase()).filter(word => word.leng
         }
 
         function processWordHunt() {
-            const gridInput = document.getElementById('gridInput').value.trim().split('\n');
-            if (gridInput.length !== window.wordHuntSize || gridInput.some(row => row.length !== window.wordHuntSize)) {
-                alert(`Please enter exactly ${window.wordHuntSize} rows with ${window.wordHuntSize} letters each.`);
+            const gridInput = document.getElementById('gridInput').value.trim().toLowerCase();
+            
+            // Validate the length of the input string
+            const expectedLength = window.wordHuntSize * window.wordHuntSize;
+            if (gridInput.length !== expectedLength) {
+                alert(`Please enter exactly ${expectedLength} letters for a ${window.wordHuntSize}x${window.wordHuntSize} grid.`);
                 return;
             }
-            const grid = gridInput.map(row => row.split(''));
+            
+            // Convert the input string into a grid
+            const grid = [];
+            for (let i = 0; i < gridInput.length; i += window.wordHuntSize) {
+                grid.push(gridInput.slice(i, i + window.wordHuntSize).split(''));
+            }
+
+            // Find all valid words in the grid
             const words = findWords(grid);
+
+            // Display the results
             showResults(words);
         }
 
