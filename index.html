@@ -52,7 +52,7 @@
             border-radius: 5px;
             font-size: 16px;
             resize: none; /* Disable resizing */
-            height: 30px; /* Set a fixed height */
+            height: 50px; /* Fixed height */
         }
         #output {
             margin: 10px 0;
@@ -101,9 +101,15 @@
             <button onclick="setupWordHunt(5)">5x5 Grid</button>
         </div>
 
+        <div id="anagramsOptions" class="hidden">
+            <p>Enter letters for Anagrams (6 or 7 letters):</p>
+            <textarea id="anagramLetters" placeholder="Enter letters"></textarea>
+            <button onclick="processAnagrams()">Find Anagrams</button>
+        </div>
+
         <div id="wordHuntInput" class="hidden">
             <p>Enter all the letters as a single string:</p>
-            <textarea id="gridInput" rows="1" placeholder="Enter letters"></textarea>
+            <textarea id="gridInput" placeholder="Enter letters"></textarea>
             <button onclick="processWordHunt()">Find Words</button>
         </div>
 
@@ -195541,7 +195547,8 @@ ZYMURGIES
 ZYMURGY
 ZYZZYVA
 ZYZZYVAS
-ZZZ`.split('\n').map(word => word.trim().toLowerCase()).filter(word => word.length > 0);
+ZZZ
+`.split('\n').map(word => word.trim().toLowerCase()).filter(word => word.length > 0);
 
         wordList.forEach(word => trie.insert(word));
 
@@ -195554,6 +195561,7 @@ ZZZ`.split('\n').map(word => word.trim().toLowerCase()).filter(word => word.leng
         // Reset the app to the main menu
         function resetApp() {
             document.getElementById('gridInput').value = '';
+            document.getElementById('anagramLetters').value = '';
             document.getElementById('output').innerHTML = '';
             document.getElementById('output').classList.add('hidden');
             document.getElementById('resetButton').style.display = 'none';
@@ -195571,27 +195579,57 @@ ZZZ`.split('\n').map(word => word.trim().toLowerCase()).filter(word => word.leng
             showElement('wordHuntInput');
         }
 
+        // Start Anagrams
+        function startAnagrams() {
+            showElement('anagramsOptions');
+        }
+
+        // Process Anagrams
+        function processAnagrams() {
+            const letters = document.getElementById('anagramLetters').value.trim().toLowerCase();
+
+            if (letters.length < 6 || letters.length > 7) {
+                alert("Please enter 6 or 7 letters only.");
+                return;
+            }
+
+            const anagrams = findAnagrams(letters);
+            showResults(anagrams);
+        }
+
+        // Find Anagrams
+        function findAnagrams(letters) {
+            const results = new Set();
+
+            function generateAnagrams(current, remaining) {
+                if (current.length >= 3 && trie.search(current)) {
+                    results.add(current);
+                }
+                for (let i = 0; i < remaining.length; i++) {
+                    generateAnagrams(current + remaining[i], remaining.slice(0, i) + remaining.slice(i + 1));
+                }
+            }
+
+            generateAnagrams('', letters);
+            return [...results].sort((a, b) => b.length - a.length); // Sort by length in descending order
+        }
+
         // Process Word Hunt grid input
         function processWordHunt() {
             const gridInput = document.getElementById('gridInput').value.trim().toLowerCase();
 
-            // Validate the length of the input string
             const expectedLength = window.wordHuntSize * window.wordHuntSize;
             if (gridInput.length !== expectedLength) {
                 alert(`Please enter exactly ${expectedLength} letters for a ${window.wordHuntSize}x${window.wordHuntSize} grid.`);
                 return;
             }
 
-            // Convert the input string into a grid
             const grid = [];
             for (let i = 0; i < gridInput.length; i += window.wordHuntSize) {
                 grid.push(gridInput.slice(i, i + window.wordHuntSize).split(''));
             }
 
-            // Find all valid words in the grid
             const words = findWords(grid);
-
-            // Display the results
             showResults(words);
         }
 
