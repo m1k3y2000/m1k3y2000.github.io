@@ -51,6 +51,8 @@
             border: 1px solid #ccc;
             border-radius: 5px;
             font-size: 16px;
+            resize: none; /* Disable resizing */
+            height: 30px; /* Set a fixed height */
         }
         #output {
             margin: 10px 0;
@@ -61,32 +63,29 @@
             max-height: 300px;
             overflow-y: auto;
         }
+        #resetButton {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 16px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            display: none; /* Initially hidden */
+            width: auto;
+            max-width: 200px;
+            text-align: center;
+        }
+        #resetButton:hover {
+            background-color: #0056b3;
+        }
         .hidden {
             display: none;
         }
-
-        #resetButton {
-         position: fixed;
-        bottom: 90px; /* Adjust vertical position */
-        left: 50%;
-        transform: translateX(-50%);
-        padding: 8px 16px; /* Adjust padding for a smaller button */
-        background-color: #007BFF;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        font-size: 14px; /* Reduce font size for a smaller button */
-        cursor: pointer;
-        display: none; /* Initially hidden */
-        width: auto; /* Make the button size dynamic */
-        max-width: 200px; /* Limit the maximum width of the button */
-        text-align: center;
-    }
-
-    #resetButton:hover {
-        background-color: #0056b3;
-    }
-
     </style>
 </head>
 <body>
@@ -102,21 +101,10 @@
             <button onclick="setupWordHunt(5)">5x5 Grid</button>
         </div>
 
-        <div id="anagramsOptions" class="hidden">
-            <button onclick="setupAnagrams(6)">6 Letters</button>
-            <button onclick="setupAnagrams(7)">7 Letters</button>
-        </div>
-
         <div id="wordHuntInput" class="hidden">
-            <p>Enter the grid (one row at a time):</p>
-            <textarea id="gridInput" rows="5" placeholder="Enter each row separated by a newline"></textarea>
+            <p>Enter all the letters as a single string:</p>
+            <textarea id="gridInput" rows="1" placeholder="Enter letters"></textarea>
             <button onclick="processWordHunt()">Find Words</button>
-        </div>
-
-        <div id="anagramsInput" class="hidden">
-            <p>Enter the letters:</p>
-            <input type="text" id="anagramLetters" placeholder="Enter letters" maxlength="7">
-            <button onclick="processAnagrams()">Find Anagrams</button>
         </div>
 
         <div id="output" class="hidden"></div>
@@ -125,6 +113,51 @@
     <button id="resetButton" onclick="resetApp()">Start Again</button>
 
     <script>
+        // Define the Trie Data Structure
+        class TrieNode {
+            constructor() {
+                this.children = {};
+                this.isEndOfWord = false;
+            }
+        }
+
+        class Trie {
+            constructor() {
+                this.root = new TrieNode();
+            }
+
+            insert(word) {
+                let node = this.root;
+                for (const char of word) {
+                    if (!node.children[char]) {
+                        node.children[char] = new TrieNode();
+                    }
+                    node = node.children[char];
+                }
+                node.isEndOfWord = true;
+            }
+
+            search(word) {
+                let node = this.root;
+                for (const char of word) {
+                    if (!node.children[char]) return false;
+                    node = node.children[char];
+                }
+                return node.isEndOfWord;
+            }
+
+            startsWith(prefix) {
+                let node = this.root;
+                for (const char of prefix) {
+                    if (!node.children[char]) return false;
+                    node = node.children[char];
+                }
+                return true;
+            }
+        }
+
+        // Initialize the Trie and Populate it with the Word List
+        const trie = new Trie();
         const wordList = `
 AA
 AAH
@@ -195510,30 +195543,45 @@ ZYZZYVA
 ZYZZYVAS
 ZZZ`.split('\n').map(word => word.trim().toLowerCase()).filter(word => word.length > 0);
 
+        wordList.forEach(word => trie.insert(word));
+
+        // Show the appropriate section
         function showElement(id) {
             document.querySelectorAll('.container > div').forEach(div => div.classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
         }
 
+        // Reset the app to the main menu
+        function resetApp() {
+            document.getElementById('gridInput').value = '';
+            document.getElementById('output').innerHTML = '';
+            document.getElementById('output').classList.add('hidden');
+            document.getElementById('resetButton').style.display = 'none';
+            showElement('menu');
+        }
+
+        // Start Word Hunt
         function startWordHunt() {
             showElement('wordHuntOptions');
         }
 
+        // Set up Word Hunt with grid size
         function setupWordHunt(size) {
             window.wordHuntSize = size;
             showElement('wordHuntInput');
         }
 
+        // Process Word Hunt grid input
         function processWordHunt() {
             const gridInput = document.getElementById('gridInput').value.trim().toLowerCase();
-            
+
             // Validate the length of the input string
             const expectedLength = window.wordHuntSize * window.wordHuntSize;
             if (gridInput.length !== expectedLength) {
                 alert(`Please enter exactly ${expectedLength} letters for a ${window.wordHuntSize}x${window.wordHuntSize} grid.`);
                 return;
             }
-            
+
             // Convert the input string into a grid
             const grid = [];
             for (let i = 0; i < gridInput.length; i += window.wordHuntSize) {
@@ -195547,19 +195595,24 @@ ZZZ`.split('\n').map(word => word.trim().toLowerCase()).filter(word => word.leng
             showResults(words);
         }
 
+        // Find words in the grid using DFS and the Trie
         function findWords(grid) {
             const rows = grid.length;
             const cols = grid[0].length;
             const results = new Set();
 
             function dfs(x, y, visited, prefix) {
-                if (!prefix || !wordList.some(word => word.startsWith(prefix))) return;
-                if (wordList.includes(prefix) && prefix.length >= 3) results.add(prefix);
+                if (!trie.startsWith(prefix)) return;
+                if (prefix.length >= 3 && trie.search(prefix)) {
+                    results.add(prefix);
+                }
                 for (let dx = -1; dx <= 1; dx++) {
                     for (let dy = -1; dy <= 1; dy++) {
                         const nx = x + dx, ny = y + dy;
                         if (dx === 0 && dy === 0 || nx < 0 || ny < 0 || nx >= rows || ny >= cols || visited.has(`${nx},${ny}`)) continue;
-                        dfs(nx, ny, new Set(visited).add(`${nx},${ny}`), prefix + grid[nx][ny]);
+                        visited.add(`${nx},${ny}`);
+                        dfs(nx, ny, visited, prefix + grid[nx][ny]);
+                        visited.delete(`${nx},${ny}`);
                     }
                 }
             }
@@ -195573,49 +195626,7 @@ ZZZ`.split('\n').map(word => word.trim().toLowerCase()).filter(word => word.leng
             return [...results].sort();
         }
 
-        function startAnagrams() {
-            showElement('anagramsOptions');
-        }
-
-        function setupAnagrams(length) {
-            window.anagramLength = length;
-            showElement('anagramsInput');
-        }
-
-        function processAnagrams() {
-            const letters = document.getElementById('anagramLetters').value.trim();
-            if (letters.length !== window.anagramLength) {
-                alert(`Please enter exactly ${window.anagramLength} letters.`);
-                return;
-            }
-            const anagrams = findAnagrams(letters);
-            showResults(anagrams);
-        }
-
-        function findAnagrams(letters) {
-            const results = new Set();
-            function generateAnagrams(current, remaining) {
-                if (current.length >= 3 && wordList.includes(current)) results.add(current);
-                for (let i = 0; i < remaining.length; i++) {
-                    generateAnagrams(current + remaining[i], remaining.slice(0, i) + remaining.slice(i + 1));
-                }
-            }
-            generateAnagrams('', letters);
-            return [...results].sort((a, b) => b.length - a.length);
-        }
-
-        function resetApp() {
-            // Clear all input fields and results
-            document.getElementById('gridInput').value = '';
-            document.getElementById('anagramLetters').value = '';
-            document.getElementById('output').innerHTML = '';
-            document.getElementById('output').classList.add('hidden');
-
-            // Hide the reset button and show the main menu
-            document.getElementById('resetButton').style.display = 'none';
-            showElement('menu');
-        }
-
+        // Show results
         function showResults(words) {
             const output = document.getElementById('output');
             if (words.length) {
@@ -195624,11 +195635,8 @@ ZZZ`.split('\n').map(word => word.trim().toLowerCase()).filter(word => word.leng
                 output.innerHTML = 'No words found.';
             }
             output.classList.remove('hidden');
-
-            // Show the reset button
             document.getElementById('resetButton').style.display = 'block';
         }
-
     </script>
 </body>
 </html>
